@@ -23,51 +23,18 @@ async function search() {
   const online = p.userPresenceType !== 0 ? "Yes" : "No";
   const ingame = p.userPresenceType === 2 ? "Yes" : "No";
 
-  let itemsHTML = "";
-  data.items.forEach(id => {
-    itemsHTML += `<div>Item ID: ${id}</div>`;
-  });
-
-  let friendsHTML = "";
-  if (data.friends && data.friends.length) {
-    data.friends.slice(0, 10).forEach(friend => {
-      friendsHTML += `<div>${friend.name}</div>`;
-    });
-  } else {
-    friendsHTML = "<div>No friends visible</div>";
-  }
-
-  let nameHistoryHTML = "";
-  if (data.usernameHistory && data.usernameHistory.length) {
-    data.usernameHistory.forEach(name => {
-      nameHistoryHTML += `<div>${name.name}</div>`;
-    });
-  } else {
-    nameHistoryHTML = "<div>No previous usernames</div>";
-  }
+  let items = "";
+  data.items.forEach(id => items += `<div>Item ID: ${id}</div>`);
 
   result.innerHTML = `
-    <img src="${data.avatar}" width="150">
-
+    <img src="${data.avatar}">
     <h2>[#${data.userId}] ${data.displayName}</h2>
     <p>"${data.description || ""}"</p>
-
     <p>Joined on: ${new Date(data.joined).toDateString()}</p>
     <p>Online: ${online}</p>
     <p>In a game: ${ingame}</p>
-
-    <h3>Estimated Account Value</h3>
-    <p>${data.value.toLocaleString()} Robux</p>
-
-    <h3>Avatar items</h3>
-    ${itemsHTML}
-
-    <h3>Friends</h3>
-    ${friendsHTML}
-
-    <h3>Username history</h3>
-    ${nameHistoryHTML}
-
+    <h3>Avatar items:</h3>
+    ${items}
     <br><small>- made by joyful_pizzapartyl -</small>
   `;
 }
