@@ -1,13 +1,15 @@
-async function searchPlayer() {
-  const username = document.getElementById("username").value;
+async function search() {
+  const username = document.getElementById("username").value.trim();
   const result = document.getElementById("result");
+
+  if (!username) return;
 
   result.innerHTML = "Searching...";
 
-  const res = await fetch("/search", {
+  const res = await fetch("/api/search", {
     method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({username})
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username })
   });
 
   const data = await res.json();
@@ -17,16 +19,31 @@ async function searchPlayer() {
     return;
   }
 
+  const p = data.presence;
+  const online = p.userPresenceType !== 0 ? "Yes" : "No";
+  const ingame = p.userPresenceType === 2 ? "Yes" : "No";
+
   let itemsHTML = "";
-  data.items.forEach(id => itemsHTML += `<div>Item ID: ${id}</div>`);
+  data.items.forEach(id => {
+    itemsHTML += `<div>Item ID: ${id}</div>`;
+  });
 
-  let online = "No";
-  let ingame = "No";
+  let friendsHTML = "";
+  if (data.friends && data.friends.length) {
+    data.friends.slice(0, 10).forEach(friend => {
+      friendsHTML += `<div>${friend.name}</div>`;
+    });
+  } else {
+    friendsHTML = "<div>No friends visible</div>";
+  }
 
-  if (data.presence.userPresenceType === 1) online = "Yes";
-  if (data.presence.userPresenceType === 2) {
-    online = "Yes";
-    ingame = "Yes";
+  let nameHistoryHTML = "";
+  if (data.usernameHistory && data.usernameHistory.length) {
+    data.usernameHistory.forEach(name => {
+      nameHistoryHTML += `<div>${name.name}</div>`;
+    });
+  } else {
+    nameHistoryHTML = "<div>No previous usernames</div>";
   }
 
   result.innerHTML = `
@@ -35,14 +52,22 @@ async function searchPlayer() {
     <h2>[#${data.userId}] ${data.displayName}</h2>
     <p>"${data.description || ""}"</p>
 
-    <p>Joined on: ${new Date(data.created).toDateString()}</p>
+    <p>Joined on: ${new Date(data.joined).toDateString()}</p>
     <p>Online: ${online}</p>
     <p>In a game: ${ingame}</p>
 
-    <h3>Avatar items:</h3>
+    <h3>Estimated Account Value</h3>
+    <p>${data.value.toLocaleString()} Robux</p>
+
+    <h3>Avatar items</h3>
     ${itemsHTML}
 
-    <br>
-    <small>- made by joyful_pizzapartyl -</small>
+    <h3>Friends</h3>
+    ${friendsHTML}
+
+    <h3>Username history</h3>
+    ${nameHistoryHTML}
+
+    <br><small>- made by joyful_pizzapartyl -</small>
   `;
 }
