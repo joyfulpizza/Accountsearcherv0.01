@@ -21,7 +21,7 @@ app.post("/api/search", async (req, res) => {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: "No username" });
 
-    // Username → UserId
+    // Username -> UserId
     const userData = await rbxFetch(
       "https://users.roblox.com/v1/usernames/users",
       {
@@ -35,15 +35,14 @@ app.post("/api/search", async (req, res) => {
 
     const userId = user.id;
 
-    // Profile
-    const profile = await rbxFetch(`https://users.roblox.com/v1/users/${userId}`);
+    const profile = await rbxFetch(
+      `https://users.roblox.com/v1/users/${userId}`
+    );
 
-    // Avatar image
     const avatar = await rbxFetch(
       `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png`
     );
 
-    // Presence
     const presence = await rbxFetch(
       "https://presence.roblox.com/v1/presence/users",
       {
@@ -52,34 +51,9 @@ app.post("/api/search", async (req, res) => {
       }
     );
 
-    // Wearing items
     const avatarItems = await rbxFetch(
       `https://avatar.roblox.com/v1/users/${userId}/currently-wearing`
     );
-
-    // Friends
-    const friends = await rbxFetch(
-      `https://friends.roblox.com/v1/users/${userId}/friends`
-    );
-
-    // Username history
-    const usernameHistory = await rbxFetch(
-      `https://users.roblox.com/v1/users/${userId}/username-history`
-    );
-
-    // Collectibles value (RAP estimate)
-    const inventory = await rbxFetch(
-      `https://inventory.roblox.com/v1/users/${userId}/assets/collectibles?limit=100`
-    );
-
-    let estimatedValue = 0;
-    if (inventory.data) {
-      inventory.data.forEach(item => {
-        if (item.recentAveragePrice) {
-          estimatedValue += item.recentAveragePrice;
-        }
-      });
-    }
 
     res.json({
       userId,
@@ -88,10 +62,7 @@ app.post("/api/search", async (req, res) => {
       joined: profile.created,
       avatar: avatar.data[0].imageUrl,
       presence: presence.userPresences[0],
-      items: avatarItems.assetIds,
-      friends: friends.data,
-      usernameHistory: usernameHistory.data,
-      value: estimatedValue
+      items: avatarItems.assetIds
     });
 
   } catch (err) {
@@ -101,4 +72,6 @@ app.post("/api/search", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("Server running on " + PORT));
+app.listen(PORT, () =>
+  console.log("Server running on port " + PORT)
+);
