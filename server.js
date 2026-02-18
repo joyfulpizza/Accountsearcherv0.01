@@ -1,67 +1,104 @@
-const express = require("express");
-const fetch = require("node-fetch");
-const cors = require("cors");
+import express from "express";
+import fetch from "node-fetch";
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 app.use(express.static("public"));
 
-app.post("/search", async (req, res) => {
-  const username = req.body.username;
+async function rbxFetch(url, options = {}) {
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {})
+    }
+  });
+  return res.json();
+}
 
+app.post("/api/search", async (req, res) => {
   try {
-    // username → userId
-    const userRes = await fetch("https://users.roblox.com/v1/usernames/users", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({usernames: [username]})
-    });
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: "No username" });
 
-    const userData = await userRes.json();
+    // Username → UserId
+    const userData = await rbxFetch(
+      "https://users.roblox.com/v1/usernames/users",
+      {
+        method: "POST",
+        body: JSON.stringify({ usernames: [username] })
+      }
+    );
+
     const user = userData.data[0];
-
-    if (!user) return res.json({error: "User not found"});
+    if (!user) return res.status(404).json({ error: "User not found" });
 
     const userId = user.id;
 
-    // profile
-    const profileRes = await fetch(`https://users.roblox.com/v1/users/${userId}`);
-    const profile = await profileRes.json();
+    // Profile
+    const profile = await rbxFetch(`https://users.roblox.com/v1/users/${userId}`);
 
-    // avatar
-    const thumbRes = await fetch(
+    // Avatar image
+    const avatar = await rbxFetch(
       `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png`
     );
-    const thumbData = await thumbRes.json();
 
-    // presence
-    const presenceRes = await fetch("https://presence.roblox.com/v1/presence/users", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({userIds: [userId]})
-    });
-    const presenceData = await presenceRes.json();
+    // Presence
+    const presence = await rbxFetch(
+      "https://presence.roblox.com/v1/presence/users",
+      {
+        method: "POST",
+        body: JSON.stringify({ userIds: [userId] })
+      }
+    );
 
-    // wearing items
-    const avatarItemsRes = await fetch(
+    // Wearing items
+    const avatarItems = await rbxFetch(
       `https://avatar.roblox.com/v1/users/${userId}/currently-wearing`
     );
-    const avatarItems = await avatarItemsRes.json();
+
+    // Friends
+    const friends = await rbxFetch(
+      `https://friends.roblox.com/v1/users/${userId}/friends`
+    );
+
+    // Username history
+    const usernameHistory = await rbxFetch(
+      `https://users.roblox.com/v1/users/${userId}/username-history`
+    );
+
+    // Collectibles value (RAP estimate)
+    const inventory = await rbxFetch(
+      `https://inventory.roblox.com/v1/users/${userId}/assets/collectibles?limit=100`
+    );
+
+    let estimatedValue = 0;
+    if (inventory.data) {
+      inventory.data.forEach(item => {
+        if (item.recentAveragePrice) {
+          estimatedValue += item.recentAveragePrice;
+        }
+      });
+    }
 
     res.json({
       userId,
       displayName: profile.displayName,
       description: profile.description,
-      created: profile.created,
-      avatar: thumbData.data[0].imageUrl,
-      presence: presenceData.userPresences[0],
-      items: avatarItems.assetIds
+      joined: profile.created,
+      avatar: avatar.data[0].imageUrl,
+      presence: presence.userPresences[0],
+      items: avatarItems.assetIds,
+      friends: friends.data,
+      usernameHistory: usernameHistory.data,
+      value: estimatedValue
     });
 
   } catch (err) {
-    res.json({error: "Server failed"});
+    console.error(err);
+    res.status(500).json({ error: "Roblox API error" });
   }
 });
 
-app.listen(3000, () => console.log("Server running on port 3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on " + PORT));
